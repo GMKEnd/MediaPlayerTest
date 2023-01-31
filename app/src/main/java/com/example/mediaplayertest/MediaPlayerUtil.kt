@@ -10,6 +10,14 @@ import java.io.IOException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+/*
+* media player 基本使用流程：
+*   1. setDataSource
+*   2. prepare 在当前线程加载资源，仅在prepare完成之后才会return，一般用于小型资源，因为加载大型资源耗时可能会导致ANR
+*      prepareAsync 大资源/网络资源，会立刻return，但在后台继续准备，需要设置onPreparedListener
+*   3. start
+* */
+
 object MediaPlayerUtil {
 
     private val TAG = MediaPlayerUtil::class.java.simpleName
@@ -32,7 +40,7 @@ object MediaPlayerUtil {
     private var status = MediaPlayStatus.IDLE
     private var singleExecutor: ExecutorService? = null
 
-    fun init() {
+    init {
         singleExecutor = Executors.newSingleThreadExecutor()
         initData()
         initPlay()
@@ -57,7 +65,7 @@ object MediaPlayerUtil {
         timerRun = object : Runnable {
             override fun run() {
                 mTimerHandler!!.postDelayed(this, TIMER_SEEK.toLong())
-                val msg: Message = Message.obtain()
+                val msg = Message.obtain()
                 msg.what = HANDLER_PLAY_TIME
                 (mUiHandler as Handler).sendMessage(msg)
             }
@@ -70,7 +78,7 @@ object MediaPlayerUtil {
         status = MediaPlayStatus.IDLE
 
         //当流媒体播放完毕的时候回调。
-        player!!.setOnCompletionListener { mediaPlayer: MediaPlayer? ->
+        player!!.setOnCompletionListener {
             Log.i(TAG, "OnCompletion: status = $status")
             stopTimer()
             status = MediaPlayStatus.PLAYBACK_COMPLETED
@@ -90,7 +98,7 @@ object MediaPlayerUtil {
         }
 
         //prepare完成后，才可以播放->start
-        player!!.setOnPreparedListener { mediaPlayer: MediaPlayer? ->
+        player!!.setOnPreparedListener {
             Log.i(TAG, "Prepared: status = $status")
             status = MediaPlayStatus.PREPARED
 
@@ -163,6 +171,9 @@ object MediaPlayerUtil {
         }
     }
 
+    /*参数为ms，是异步方法
+    * 在prepared及之后才有效，通过设置onSeekCompleteListener自定义
+    * */
     fun seekTo(position: Int) {
         Log.i(TAG, "seekTo: status = $status")
         if (status == MediaPlayStatus.PREPARED || status == MediaPlayStatus.STARTED || status == MediaPlayStatus.PAUSED || status == MediaPlayStatus.PLAYBACK_COMPLETED) {
@@ -227,49 +238,54 @@ object MediaPlayerUtil {
     //MediaPlay生命周期在END和IDLE状态中间流转
     internal enum class MediaPlayStatus {
         //空闲状态
-        //1.使用new创建->IDLE
-        //2.调用reset()->IDLE
-        //这两种方式的区别是：如果测试发生错误（调用getCurrentPosition()等方法），
-        //1方式不会回调方法 OnErrorListener.onError() 并且对象状态保持不变
-        //2方式会回调方法 OnErrorListener.onError()并且对象将转移到ERROR状态
-        IDLE,  //初始化状态
+        //1.使用new创建->IDLE 不会回调onError，状态不变
+        //2.调用reset()->IDLE 如果测试发生错误（调用getCurrentPosition()等方法），会回调方法 OnErrorListener.onError()并且对象将转移到ERROR状态
+        IDLE,
 
-        //1.setDataSource()->INITIALIZED
-        INITIALIZED,  //1.INITIALIZED->prepareAsync()->PREPARING
+        //初始化状态，setDataSource()后进入INITIALIZED
+        INITIALIZED,
 
+        //仅异步加载会进入该状态
+        //1.INITIALIZED->prepareAsync()->PREPARING
         //2.STOPPED->prepareAsync()->PREPARING
-        PREPARING,  //MediaPlayer 对象必须先进入Prepared状态，然后才能开始播放
+        PREPARING,
 
-        //1.PREPARING->OnPreparedListener.onPrepare()->PREPARED
+        //MediaPlayer 对象必须先进入Prepared状态，然后才能开始播放
+        //1.PREPARING->OnPreparedListener.onPrepare()->PREPARED 异步加载监听完成
         //2.INITIALIZED->prepare()->PREPARED
         //3.STOPPED->prepare()->PREPARED
         //4.PREPARED->seekTo()->PREPARED
-        PREPARED,  //1.PREPARED->start()->STARTED
+        PREPARED,
 
+        //可以通过 isPlaying()检测当前是否为STARTED状态
+        //1.PREPARED->start()->STARTED
         //2.PAUSED->start()->STARTED
         //3.STARTED->seekTo(),start()->STARTED
-        //4.PLAYBACK_COMPLETED&&setLooping(true)->STARTED
+        //4.setLooping(true)->STARTED 在播放完成后，保持Started状态
         //5.PLAYBACK_COMPLETED->start()->STARTED
-        STARTED,  //1.STARTED->pause()->PAUSED
+        STARTED,
 
+        //1.STARTED->pause()->PAUSED
         //2.PAUSED->pause(),seekTo()->PAUSED
-        PAUSED,  //1.STARTED->stop()->STOPPED
+        PAUSED,
 
-        //2.PAUSED->stop()->PAUSE
-        //3.PLAYBACK_COMPLETED->stop()->PAUSE
+        //1.STARTED->stop()->STOPPED
+        //2.PAUSED->stop()->STOPPED
+        //3.PLAYBACK_COMPLETED->stop()->STOPPED
         //4.STOPPED->stop()->STOPPED
         //5.PREPARED->stop()->STOPPED
-        STOPPED,  //1.STARTED->PLAYBACK_COMPLETED&&setLooping(true)->PLAYBACK_COMPLETED
+        STOPPED,
 
-        //1.PLAYBACK_COMPLETED->seekTo()->PLAYBACK_COMPLETED
+        //1.if (setLooping(false) && onCompletion() invoked in OnCompletionListener)->PLAYBACK_COMPLETED
+        //2.PLAYBACK_COMPLETED->seekTo()->PLAYBACK_COMPLETED
         PLAYBACK_COMPLETED,  //播放完成，在此状态调用seekTo()
 
-        //1.onErrorListener.onError()
-        ERROR,  //onErrorListener.onError -> ERROR
+        //1.onErrorListener.onError()-> ERROR
+        ERROR,
 
         //release()->END
         //一旦不再使用 MediaPlayer 对象，release()立即调用
-        //一旦 MediaPlayer 对象处于End状态，就不能再使用它，也无法将其恢复到任何其他状态。
-        END //
+        //一旦 MediaPlayer 对象处于End状态，就不能再使用它，也无法将其恢复到任何其他状态
+        END
     }
 }
