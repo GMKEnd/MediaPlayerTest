@@ -4,10 +4,13 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import com.example.mediaplayertest.MusicService.MyBinder
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -32,6 +35,39 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        val btn: Button = findViewById(R.id.button)
+        btn.setOnClickListener {
+            doPlay()
+        }
+    }
+
+    private fun doPlay() {
+        val mediaPlayer = MediaPlayerUtil
+        mediaPlayer.setOnMediaStateListener(object : MediaPlayerUtil.OnMediaStateListener {
+            override fun onPrepared() {
+                mediaPlayer.start()
+            }
+
+            override fun onSeekUpdate(curTimeInt: Int) {
+                TODO("Not yet implemented")
+            }
+
+            override fun onCompletion() {
+                TODO("Not yet implemented")
+            }
+
+            override fun onError(): Boolean {
+                mediaPlayer.reset()
+                return true
+            }
+        })
+        val file = File(Environment.getExternalStorageDirectory(), "iwish.mp3")
+        try {
+            mediaPlayer.prepare(file.absolutePath)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private val handler = Handler()
