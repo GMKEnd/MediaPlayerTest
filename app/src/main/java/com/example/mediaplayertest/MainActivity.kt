@@ -3,11 +3,15 @@ package com.example.mediaplayertest
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.widget.Button
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.mediaplayertest.MusicService.MyBinder
 import java.io.File
@@ -38,15 +42,42 @@ class MainActivity : AppCompatActivity() {
 
         val btn: Button = findViewById(R.id.button)
         btn.setOnClickListener {
-            doPlay()
+            doCreate()
+        }
+
+        val text: TextView = findViewById(R.id.play_status)
+
+        val getStatusBtn: Button = findViewById(R.id.status)
+        getStatusBtn.setOnClickListener {
+            text.text = MediaPlayerUtil.getStatus()
         }
     }
 
+    private fun doCreate() {
+        mPlayer = MediaPlayer.create(this, R.raw.testcut)
+        mPlayer.start()
+    }
+
+    private var mPlayer = MediaPlayer()
+
+    private val listener= MediaPlayer.OnPreparedListener { mPlayer.start() }
+
+    private fun doMediainit() {
+        val uri = Uri.parse("android.resource://com.android.sim/"+R.raw.testcut)
+        mPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
+        try {
+            mPlayer.setDataSource(this, uri)
+            mPlayer.prepareAsync()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        mPlayer.setOnPreparedListener(listener)
+    }
+
     private fun doPlay() {
-        val mediaPlayer = MediaPlayerUtil
-        mediaPlayer.setOnMediaStateListener(object : MediaPlayerUtil.OnMediaStateListener {
+        MediaPlayerUtil.setOnMediaStateListener(object : MediaPlayerUtil.OnMediaStateListener {
             override fun onPrepared() {
-                mediaPlayer.start()
+                MediaPlayerUtil.start()
             }
 
             override fun onSeekUpdate(curTimeInt: Int) {
@@ -58,13 +89,15 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onError(): Boolean {
-                mediaPlayer.reset()
+                MediaPlayerUtil.reset()
                 return true
             }
         })
+        val url = Uri.parse("//music.163.com/outchain/player?type=2&id=2006471884&auto=1&height=66")
         val file = File(Environment.getExternalStorageDirectory(), "iwish.mp3")
+        val uri = Uri.parse("android.resource://com.android.sim/"+R.raw.testcut)
         try {
-            mediaPlayer.prepare(file.absolutePath)
+            MediaPlayerUtil.prepare(uri, this)
         } catch (e: Exception) {
             e.printStackTrace()
         }

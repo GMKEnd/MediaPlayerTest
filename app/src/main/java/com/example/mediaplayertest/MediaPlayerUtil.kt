@@ -1,6 +1,8 @@
 package com.example.mediaplayertest
 
+import android.content.Context
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -44,6 +46,21 @@ object MediaPlayerUtil {
         singleExecutor = Executors.newSingleThreadExecutor()
         initData()
         initPlay()
+    }
+
+    fun getStatus(): String {
+        return when (status) {
+            MediaPlayStatus.IDLE -> "IDLE"
+            MediaPlayStatus.INITIALIZED -> "INITIALIZED"
+            MediaPlayStatus.PREPARING -> "PREPARING"
+            MediaPlayStatus.PREPARED -> "PREPARED"
+            MediaPlayStatus.STARTED -> "STARTED"
+            MediaPlayStatus.PAUSED -> "PAUSED"
+            MediaPlayStatus.STOPPED -> "STOPPED"
+            MediaPlayStatus.ERROR -> "ERROR"
+            MediaPlayStatus.END -> "END"
+            else -> "nnn"
+        }
     }
 
     private fun initData() {
@@ -111,7 +128,7 @@ object MediaPlayerUtil {
 
     //资源可能为空,或者太大，获取其他原因导致无法加载，所以加上try catch
     @Throws(IOException::class)
-    fun prepare(audioPath: String?) {
+    fun prepare(audioPath: Uri, context: Context) {
 
         //先保证恢复空闲状态
         if (player != null) {
@@ -120,7 +137,7 @@ object MediaPlayerUtil {
 
         //设置资源
         if (status == MediaPlayStatus.IDLE) {
-            player!!.setDataSource(audioPath)
+            player!!.setDataSource(context, audioPath)
             status = MediaPlayStatus.INITIALIZED
         }
 
@@ -209,6 +226,20 @@ object MediaPlayerUtil {
             status = MediaPlayStatus.END
         }
         stopTimer()
+    }
+
+    fun setStatus(statusCode: Int) {
+        when (statusCode) {
+            0 -> status = MediaPlayStatus.IDLE
+            1 -> status = MediaPlayStatus.INITIALIZED
+            2 -> status = MediaPlayStatus.PREPARING
+            3 -> status = MediaPlayStatus.PREPARED
+            4 -> status = MediaPlayStatus.STARTED
+            5 -> status = MediaPlayStatus.PAUSED
+            6 -> status = MediaPlayStatus.STOPPED
+            7 -> status = MediaPlayStatus.ERROR
+            8 -> status = MediaPlayStatus.END
+        }
     }
 
     fun onDestroy() {
