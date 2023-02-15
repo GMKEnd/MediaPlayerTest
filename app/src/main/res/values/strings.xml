@@ -1,4 +1,9 @@
 <resources>
     <string name="app_name">MediaPlayerTest</string>
     <string name="textview">TextView</string>
+    <string name="create_mp">create MP</string>
+    <string name="get_stat">get Stat</string>
+    <string name="prepare_mp">prepare MP</string>
+    <string name="pause">pause</string>
+    <string name="resume">Resume</string>
 </resources>
