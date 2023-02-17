@@ -11,14 +11,25 @@ import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.example.mediaplayertest.MusicService.MyBinder
 import java.io.File
+import java.util.Timer
+import java.util.TimerTask
 
 class MainActivity : AppCompatActivity() {
 
     private var mPlayer = MediaPlayer()
+
+    private var mBar: ProgressBar? = null
+
+    private var mTimer: Timer? = null
+
+    private var mTimerTask: TimerTask? = null
+
+    private var mText: TextView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,17 +55,41 @@ class MainActivity : AppCompatActivity() {
             doResume()
         }
 
-        val text: TextView = findViewById(R.id.play_status)
-        val getStatusBtn: Button = findViewById(R.id.status)
-        getStatusBtn.setOnClickListener {
-            text.text = MediaPlayerUtil.getStatus()
-        }
+        mBar = findViewById(R.id.progressBar)
+
+//        val text: TextView = findViewById(R.id.play_status)
+//        val getStatusBtn: Button = findViewById(R.id.status)
+//        getStatusBtn.setOnClickListener {
+//            text.text = MediaPlayerUtil.getStatus()
+//        }
     }
 
     private fun doCreate() {
         mPlayer = MediaPlayer()
         mPlayer = MediaPlayer.create(this, R.raw.testcut)
         mPlayer.start()
+        // bar stuff
+        mBar?.max = mPlayer.duration
+        if (mTimer != null) {
+            mTimer = null
+            mTimerTask = null
+        }
+        mTimer = Timer()
+
+//        ObjectAnimator.ofInt(mBar!!, "progress", 0, mBar?.max!!)
+//            .duration()
+//            .start()
+
+        mTimerTask = (object : TimerTask() {
+            override fun run() {
+                if (mPlayer.isPlaying) {
+                    runOnUiThread {
+                        mBar?.progress = mPlayer.currentPosition
+                    }
+                }
+            }
+        })
+        mTimer!!.schedule(mTimerTask, 0, 10)
     }
 
     private fun doPrepare() {
@@ -66,7 +101,7 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        mPlayer.setOnPreparedListener{
+        mPlayer.setOnPreparedListener {
             mPlayer.start()
         }
     }
